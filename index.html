@@ -70,6 +70,9 @@
         .nav-tabs { display: flex; gap: 5px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; position: relative; z-index: 2; }
         .tab-btn { background: none; border: none; border-bottom: 3px solid transparent; font-weight: 600; color: #64748b; padding: 10px 15px; white-space: nowrap; }
         .tab-btn.active { color: var(--electric); border-bottom-color: var(--electric); }
+        .filter-chip { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+        .filter-chip:hover { border-color: var(--electric); }
+        .filter-chip.active { color: #000; border-color: transparent; }
 
         .entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 5px; position: relative; z-index: 2; }
         .companion-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: #fff; text-transform: uppercase; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
@@ -152,6 +155,7 @@
     </div>
 
     <div id="view-feed" class="view-section active">
+        <div id="feedFilters" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
         <input type="text" id="searchBar" placeholder="Search entries..." onkeyup="renderEntries()" style="margin-bottom: 20px;">
         <div id="journalFeed"></div>
     </div>
@@ -271,6 +275,7 @@ let entries = [];      // in-memory mirror of public.entries (mapped shape)
 let companions = [];   // in-memory mirror of public.identities
 let pendingRaw = null;   // full parsed Protocol v3 JSON for the entry being edited
 let pendingDrift = null; // structured drift_markers object for the entry being edited
+let feedFilter = 'all';  // Feed identity filter ('all' or a companion name)
 
 /* ---------- THEME ---------- */
 function toggleMode() {
@@ -326,7 +331,8 @@ async function loadAll() {
     if (entRes.error) { showToast('Load failed: ' + entRes.error.message); return; }
     companions = (idsRes.data || []).map(r => ({ id: r.id, name: r.name, color: r.color }));
     entries = (entRes.data || []).map(mapRow);
-    renderEntries(); renderDashboard(); populateCompareDropdown();
+    if (feedFilter !== 'all' && !companions.find(c => c.name === feedFilter)) feedFilter = 'all';
+    renderFeedFilters(); renderEntries(); renderDashboard(); populateCompareDropdown();
 }
 
 /* ---------- PROTOCOL v3 PASTE EXTRACTION ---------- */
@@ -369,11 +375,24 @@ function isReal(v) { return v && String(v).trim() && String(v).trim().toLowerCas
 /* ---------- FEED ---------- */
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function fmtDay(iso) { const d = new Date(iso); return isNaN(d) ? String(iso).slice(0, 10) : d.toLocaleDateString('en-CA'); }
+function jsq(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function renderFeedFilters() {
+    const bar = document.getElementById('feedFilters'); if (!bar) return;
+    const chips = [{ name: 'all', label: 'All', color: '#3ab7ff' }].concat(companions.map(c => ({ name: c.name, label: c.name, color: c.color })));
+    bar.innerHTML = chips.map(ch => {
+        const active = feedFilter === ch.name;
+        const style = active ? `background:${ch.color};` : '';
+        return `<button class="filter-chip${active ? ' active' : ''}" style="${style}" onclick="setFeedFilter('${jsq(ch.name)}')">${esc(ch.label)}</button>`;
+    }).join('');
+}
+function setFeedFilter(name) { feedFilter = name; renderFeedFilters(); renderEntries(); }
 
 function renderEntries() {
     const q = document.getElementById('searchBar').value.toLowerCase(); const div = document.getElementById('journalFeed'); div.innerHTML = '';
     if (!entries.length) { div.innerHTML = '<div style="padding:20px; color:var(--silver); text-align:center;">No entries yet. Paste a Protocol v3 close-out, or import your AIBU backup from ⚙️ Data.</div>'; return; }
     entries.forEach(e => {
+        if (feedFilter !== 'all' && e.companion !== feedFilter) return;
         const txt = (e.summary + e.companion + e.model + (e.source || '') + e.thoughts.join('')).toLowerCase(); if (q && !txt.includes(q)) return;
         const c = companions.find(x => x.name === e.companion) || { color: '#cfd3d6' };
         let snapHtml = '';
@@ -382,8 +401,9 @@ function renderEntries() {
             if (s) snapHtml = `<details class="snapshot-block"><summary>▶ Context Snapshot</summary><div class="snapshot-grid"><div class="snap-item"><strong>Identity State</strong><span>${esc(s.identity_state || '-')}</span></div><div class="snap-item"><strong>Tone Axes</strong><span>${esc(s.tone_axes || '-')}</span></div><div class="snap-item"><strong>Anchors</strong><span>${esc((s.active_anchors || []).join(', '))}</span></div><div class="snap-item"><strong>Flags</strong><span>${esc((s.preference_flags || []).join(', '))}</span></div></div></details>`;
         }
         const displaySummary = esc(e.summary) || (e.snapshot ? '📝 Diagnostic Snapshot Logged' : 'No summary provided.');
-        div.innerHTML += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color}">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span>${e.source ? ` <span class="date-badge" style="opacity:0.6;">· ⌂ ${esc(e.source)}</span>` : ''}</div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
+        div.innerHTML += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color};cursor:pointer" title="Show only ${esc(e.companion)}" onclick="event.stopPropagation();setFeedFilter('${jsq(e.companion)}')">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span>${e.source ? ` <span class="date-badge" style="opacity:0.6;">· ⌂ ${esc(e.source)}</span>` : ''}</div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
     });
+    if (!div.innerHTML) div.innerHTML = `<div style="padding:20px; color:var(--silver); text-align:center;">No entries${feedFilter !== 'all' ? ' for ' + esc(feedFilter) : ''}${q ? ' matching "' + esc(q) + '"' : ''}.</div>`;
 }
 function safeParse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
 
