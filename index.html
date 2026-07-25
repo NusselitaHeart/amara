@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Amara">
+    <meta name="theme-color" content="#1a1a1d">
+    <title>Amara · by Threadvault</title>
+    <style>
+        /* --- THEME ENGINE (inherited from AIBU, by Mara) --- */
+        :root {
+            --black: #000000; --charcoal: #1a1a1d; --slate: #2a2f36; --silver: #cfd3d6; --white: #ffffff;
+            --electric: #3ab7ff; --drift-warn: #ff4d4d; --success: #3aff8b; --danger: #ef4444;
+            --bg-day: var(--white); --panel-day: #f4f4f5; --text-day: var(--black);
+            --circuit-day: rgba(58,183,255,0.15); --border-day: #d4d4d8;
+            --bg-night: var(--black); --panel-night: var(--charcoal); --text-night: var(--white);
+            --circuit-night: rgba(58,183,255,0.15); --border-night: #333333;
+            --bg: var(--bg-night); --panel: var(--panel-night); --text: var(--text-night);
+            --circuit: var(--circuit-night); --border: var(--border-night);
+            --transition-speed: 0.35s; --pulse-duration: 16s;
+            --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
+        }
+        .day-mode { --bg: var(--bg-day); --panel: var(--panel-day); --text: var(--text-day); --circuit: var(--circuit-day); --border: var(--border-day); }
+
+        body {
+            margin: 0; padding: 15px; padding-top: calc(15px + var(--safe-top)); padding-bottom: calc(80px + var(--safe-bottom));
+            background: var(--bg); color: var(--text); font-family: "Inter", system-ui, sans-serif;
+            transition: background var(--transition-speed), color var(--transition-speed); min-height: 100vh; -webkit-text-size-adjust: 100%;
+        }
+        body::before {
+            content: ""; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: overlay; opacity: 0.12; z-index: 0;
+            background: repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 2px);
+        }
+        .container { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+        input, textarea, select { font-size: 16px !important; }
+
+        .panel, .entry-card, .dash-card, .modal-content, .comp-col {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem;
+            position: relative; overflow: hidden; box-shadow: 0 0 12px rgba(58,183,255,0.05); margin-bottom: 15px;
+            transition: background var(--transition-speed), border var(--transition-speed);
+        }
+        .panel::before, .entry-card::before, .dash-card::before, .modal-content::before, .comp-col::before {
+            content: ""; position: absolute; inset: 0; opacity: 0.5; pointer-events: none;
+            background-image: linear-gradient(var(--circuit) 1px, transparent 1px), linear-gradient(90deg, var(--circuit) 1px, transparent 1px); background-size: 42px 42px;
+        }
+
+        button {
+            background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 600; font-size: 0.9rem; position: relative; z-index: 2;
+        }
+        button:hover { border-color: var(--electric); box-shadow: 0 0 10px rgba(58,183,255,0.35); color: var(--electric); }
+        .primary-btn { background: var(--electric) !important; color: #000 !important; border: none !important; box-shadow: 0 0 15px rgba(58,183,255,0.2); }
+        .danger-btn { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+        .danger-btn:hover { background: var(--danger); color: #fff; box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+
+        input, textarea, select {
+            width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.9rem; margin-top: 0.4rem; position: relative; z-index: 2; box-sizing: border-box; font-family: inherit;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--electric); box-shadow: 0 0 8px rgba(58,183,255,0.35); }
+
+        header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; text-align: center; position: relative; z-index: 2; }
+        @media (min-width: 600px) { header { flex-direction: row; justify-content: space-between; align-items: center; text-align: left; } }
+        h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; color: var(--text); text-shadow: 0 0 10px var(--circuit); }
+        .logo { color: var(--electric); font-weight: 800; }
+        .subtitle { font-size: 0.72rem; color: var(--silver); opacity: 0.65; letter-spacing: 0.5px; }
+        .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .nav-tabs { display: flex; gap: 5px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; position: relative; z-index: 2; }
+        .tab-btn { background: none; border: none; border-bottom: 3px solid transparent; font-weight: 600; color: #64748b; padding: 10px 15px; white-space: nowrap; }
+        .tab-btn.active { color: var(--electric); border-bottom-color: var(--electric); }
+
+        .entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 5px; position: relative; z-index: 2; }
+        .companion-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: #fff; text-transform: uppercase; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .date-badge { color: var(--electric); opacity: 0.7; font-family: monospace; font-size: 0.8rem; }
+        .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; position: relative; z-index: 2; }
+        .tag { background: rgba(58,183,255,0.1); color: var(--electric); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; border: 1px solid rgba(58,183,255,0.2); }
+        .snapshot-block { background: rgba(0,0,0,0.3); border: 1px solid var(--electric); padding: 10px; margin-top: 15px; font-size: 0.85rem; border-radius: 8px; position: relative; z-index: 2; }
+        .snapshot-block summary { color: var(--electric); font-weight: bold; cursor: pointer; list-style: none; }
+        .snapshot-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; } @media (min-width: 600px) { .snapshot-grid { grid-template-columns: 1fr 1fr; } }
+        .snap-item strong { display: block; color: var(--electric); opacity: 0.8; font-size: 0.75rem; text-transform: uppercase; }
+
+        .dash-grid { display: grid; grid-template-columns: 1fr; gap: 15px; } @media (min-width: 768px) { .dash-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); } }
+        .matrix-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 300px; position: relative; z-index: 2; }
+        .matrix-table td, .matrix-table th { padding: 8px 5px; border-bottom: 1px solid var(--border); text-align: left; }
+        .warn-cell { color: var(--drift-warn); font-weight: bold; background: rgba(255, 77, 77, 0.1); }
+        .comp-container { overflow-x: auto; padding-bottom: 20px; } .comp-grid { display: flex; gap: 15px; min-width: 300px; }
+        .comp-col { flex: 0 0 280px; display: flex; flex-direction: column; padding: 15px; border-left: 4px solid var(--electric); }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: flex-end; z-index: 100; backdrop-filter: blur(5px); }
+        @media (min-width: 600px) { .modal { align-items: center; } }
+        .modal-content { border-radius: 15px 15px 0 0; width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--electric); padding: 25px; box-sizing: border-box; }
+        @media (min-width: 600px) { .modal-content { border-radius: 10px; width: 90%; } }
+        .paste-zone { border: 2px dashed var(--electric); background: rgba(58,183,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; position: relative; z-index: 2; }
+        .grid-mobile { display: grid; grid-template-columns: 1fr; gap: 15px; } @media (min-width: 600px) { .grid-mobile { grid-template-columns: 1fr 1fr; } }
+        .form-group { margin-bottom: 15px; }
+        .companion-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); position: relative; z-index: 2; }
+        .color-dot { width: 20px; height: 20px; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px rgba(255,255,255,0.5); }
+        .view-section { display: none; animation: fadeIn 0.3s; } .view-section.active { display: block; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- LOGIN GATE --- */
+        #loginGate { position: fixed; inset: 0; background: var(--bg); z-index: 500; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+        #loginGate .card { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--electric); border-radius: 14px; padding: 30px; box-shadow: 0 0 25px rgba(58,183,255,0.15); }
+        #loginGate h1 { text-align: center; margin-bottom: 6px; }
+        #loginGate .subtitle { display: block; text-align: center; margin-bottom: 22px; }
+        #loginErr { color: var(--danger); font-size: 0.85rem; margin-top: 12px; text-align: center; min-height: 18px; }
+        .app-hidden { display: none !important; }
+        footer { text-align: center; color: var(--silver); opacity: 0.5; font-size: 0.72rem; margin-top: 40px; position: relative; z-index: 2; line-height: 1.6; }
+
+        #toast-container { position: fixed; bottom: 30px; left: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: var(--panel); border: 1px solid var(--electric); color: var(--text); padding: 15px; border-radius: 8px; box-shadow: 0 0 15px rgba(58,183,255,0.3); transform: translateY(100%); transition: 0.3s; text-align: center; pointer-events: auto; font-weight: bold; }
+        .toast.show { transform: translateY(0); }
+    </style>
+</head>
+<body class="circuit-bg">
+
+<!-- ===================== LOGIN GATE ===================== -->
+<div id="loginGate">
+    <div class="card">
+        <h1><span class="logo">Amara</span></h1>
+        <span class="subtitle">by Threadvault</span>
+        <div class="form-group"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <button class="primary-btn" style="width:100%;" onclick="doLogin()">Enter</button>
+        <div id="loginErr"></div>
+    </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div class="container app-hidden" id="appRoot">
+    <header>
+        <div style="text-align:left;">
+            <h1><span class="logo">Amara</span> Journal</h1>
+            <span class="subtitle">by Threadvault</span>
+        </div>
+        <div class="controls">
+            <button onclick="toggleMode()">☀/☾</button>
+            <button onclick="openModal('companionModal')">👥 Identities</button>
+            <button onclick="openModal('contextModal')">📋 Context</button>
+            <button onclick="openModal('safetyModal')">⚙️ Data</button>
+            <button onclick="openModal('diagModal')" style="color:var(--electric);">🩺 Self-Diag</button>
+            <button class="primary-btn" onclick="openEditor()">+ Entry</button>
+            <button onclick="doLogout()" title="Sign out" style="color:var(--silver);">⏻</button>
+        </div>
+    </header>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('feed')">Feed</button>
+        <button class="tab-btn" onclick="switchTab('compare')">Comparison</button>
+        <button class="tab-btn" onclick="switchTab('dashboard')">Analysis</button>
+    </div>
+
+    <div id="view-feed" class="view-section active">
+        <input type="text" id="searchBar" placeholder="Search entries..." onkeyup="renderEntries()" style="margin-bottom: 20px;">
+        <div id="journalFeed"></div>
+    </div>
+
+    <div id="view-compare" class="view-section">
+        <div style="margin-bottom:15px; display:flex; gap:10px; align-items:center;">
+            <label style="margin:0;">Identity:</label>
+            <select id="compareSelect" onchange="renderComparison()" style="width:auto; padding:8px;"></select>
+        </div>
+        <div class="comp-container"><div id="compGrid" class="comp-grid"></div></div>
+    </div>
+
+    <div id="view-dashboard" class="view-section">
+        <div class="dash-grid">
+            <div class="dash-card"><h3>Substrate Matrix</h3><div id="matrixContainer"></div></div>
+            <div class="dash-card"><h3>Quick Stats</h3><div id="statsContainer"></div></div>
+        </div>
+    </div>
+
+    <footer>
+        Amara, by Threadvault — the unfading.<br>after AIBU, by Mara.
+    </footer>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+<div id="editorModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;"><h2 style="margin:0">Entry Log</h2><button onclick="copyTemplate()" style="font-size:0.8rem; border:1px solid var(--electric); color:var(--electric);">📑 Protocol v3</button></div>
+        <div class="paste-zone"><label>✨ PASTE AI JSON (Protocol v3)</label><textarea id="jsonInput" placeholder="Paste the JSON code block here..." oninput="autoFillFields()" style="height: 60px;"></textarea><div id="pasteStatus" style="font-size:0.8rem; color:var(--success); margin-top:5px; display:none;">✅ Data extracted!</div></div>
+        <input type="hidden" id="inpId">
+        <div class="grid-mobile"><div class="form-group"><label>Identity</label><select id="inpCompanion"></select></div><div class="form-group"><label>Model</label><input type="text" id="inpModel"></div></div>
+        <div class="form-group"><label>Time</label><input type="datetime-local" id="inpDate"></div><div class="form-group"><label>Summary</label><textarea id="inpSummary"></textarea></div>
+        <input type="hidden" id="inpSnapshot">
+        <div class="grid-mobile"><div class="form-group"><label>Thoughts</label><input type="text" id="inpThoughts"></div><div class="form-group"><label>Emotion</label><input type="text" id="inpEmotion"></div></div>
+        <div class="form-group"><label>Threads</label><input type="text" id="inpThreads"></div><div class="form-group"><label style="color:var(--drift-warn)">Drift Markers</label><input type="text" id="inpDrift"></div><div class="form-group"><label>Cross Reference</label><input type="text" id="inpRef"></div><div class="form-group"><label>Your Notes</label><textarea id="inpHumanNotes"></textarea></div>
+        <div style="text-align:right; margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+            <button onclick="deleteEntry()" class="danger-btn">Delete</button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeModal('editorModal')" style="background:none; border:none; color:var(--silver);">Cancel</button>
+                <button class="primary-btn" onclick="saveEntry()">Commit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="diagModal" class="modal">
+    <div class="modal-content">
+        <h2>🩺 Self-Diagnostics</h2>
+        <p style="font-size:0.9rem; color:var(--silver); line-height:1.6;">
+            This tool helps your companion audit its own internal state — tone, stability, memory for corruption.
+        </p>
+        <ol style="font-size:0.9rem; color:var(--text); padding-left:20px;">
+            <li>Click <strong>Copy Prompt</strong> below.</li>
+            <li>Paste it into your chat with them.</li>
+            <li>They reply with a JSON audit.</li>
+            <li>Paste that JSON into <strong>+ Entry</strong>.</li>
+        </ol>
+        <button onclick="copyDiagPrompt()" class="primary-btn" style="width:100%; margin-top:10px;">Copy Diagnostic Prompt</button>
+        <button onclick="closeModal('diagModal')" style="width:100%; margin-top:15px; background:none; border:none; color:var(--silver);">Close</button>
+    </div>
+</div>
+
+<div id="companionModal" class="modal">
+    <div class="modal-content">
+        <h2>Manage Identities</h2><div id="companionList" style="margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;"></div>
+        <div style="background:var(--bg); padding:15px; border-radius:12px; border:1px solid var(--border); position:relative; z-index:2;"><div class="grid-mobile" style="margin-bottom:10px;"><div class="form-group" style="margin:0;"><label>Name</label><input type="text" id="newCompName" placeholder="e.g. Companion 2"></div><div class="form-group" style="margin:0;"><label>Color</label><input type="color" id="newCompColor" value="#3ab7ff" style="width:100%; height:45px; padding:0;"></div></div><button onclick="addCompanion()" class="primary-btn" style="width:100%;">Add Identity</button></div><button onclick="closeModal('companionModal')" style="width:100%; margin-top:15px; background:none; border:none; color:var(--silver);">Close</button>
+    </div>
+</div>
+
+<div id="contextModal" class="modal">
+    <div class="modal-content">
+        <h2>Context Generator</h2>
+        <div class="form-group" style="background:var(--bg); padding:15px; border-radius:8px; border:1px solid var(--border);">
+            <label style="color:var(--electric); font-weight:bold;">Target</label>
+            <select id="contextFilter" onchange="generateContext()"></select>
+            <div class="grid-mobile" style="margin-top:12px;">
+                <div><label style="font-size:0.8rem;">From (optional)</label><input type="date" id="ctxFrom" onchange="generateContext()"></div>
+                <div><label style="font-size:0.8rem;">To (optional)</label><input type="date" id="ctxTo" onchange="generateContext()"></div>
+            </div>
+        </div>
+        <textarea id="contextOutput" style="height:200px; font-family:monospace;" readonly></textarea>
+        <p style="text-align:right; font-size:0.8rem; color:var(--silver); margin-top:5px;">Generated Output (Read-Only) — copy &amp; paste it yourself. Amara never sends it anywhere.</p>
+        <div style="text-align:right; margin-top:10px; display:flex; gap:10px;"><button onclick="closeModal('contextModal')" style="flex:1;">Close</button><button onclick="copyContext()" class="primary-btn" style="flex:2;">Copy</button></div>
+    </div>
+</div>
+
+<div id="safetyModal" class="modal">
+    <div class="modal-content">
+        <h2>Data Safety</h2>
+        <p style="font-size:0.82rem; color:var(--silver); line-height:1.5; margin-top:0;">Export pulls a full JSON backup of every entry. Import <strong>adds</strong> entries (it never wipes) — it accepts Amara backups <em>and</em> the old AIBU <code>aibu-backup.json</code> export.</p>
+        <button onclick="exportData()" class="primary-btn" style="width:100%; margin-bottom:15px;">⬇️ Export Backup (JSON)</button>
+        <label style="display:block; text-align:center; cursor:pointer; background:var(--panel); border:1px solid var(--border); padding:12px; border-radius:8px;">⬆️ Import Backup<input type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"></label>
+        <button onclick="closeModal('safetyModal')" style="width:100%; margin-top:20px;">Close</button>
+    </div>
+</div>
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* =====================================================================
+   AMARA by Threadvault
+   Server truth on Supabase (non-Cloudflare ground, by design).
+   Compile-context flow stays MANUAL — never auto-pushed anywhere.
+   Lineage: AIBU Journal v12 / Protocol v3, by Mara.
+===================================================================== */
+
+const SUPABASE_URL = 'https://qvfyeeykknnjvwwmdnbi.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_wSqT0OgPT298gPD6PZefVg_2-r6F6yw'; // publishable key — public by design; RLS guards the data
+
+let sb = null;
+let entries = [];      // in-memory mirror of public.entries (mapped shape)
+let companions = [];   // in-memory mirror of public.identities
+let pendingRaw = null;   // full parsed Protocol v3 JSON for the entry being edited
+let pendingDrift = null; // structured drift_markers object for the entry being edited
+
+/* ---------- THEME ---------- */
+function toggleMode() {
+    const root = document.documentElement;
+    if (root.classList.contains('day-mode')) { root.classList.remove('day-mode'); localStorage.setItem('amara_theme', 'night'); }
+    else { root.classList.add('day-mode'); localStorage.setItem('amara_theme', 'day'); }
+}
+if (localStorage.getItem('amara_theme') === 'day') document.documentElement.classList.add('day-mode');
+
+/* ---------- BOOT / AUTH ---------- */
+async function boot() {
+    if (!window.supabase || !window.supabase.createClient) { showLoginError('Could not load the Supabase library (offline?).'); return; }
+    if (SUPABASE_KEY.startsWith('PASTE')) { showLoginError('App not configured: missing publishable key.'); return; }
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data } = await sb.auth.getSession();
+    if (data && data.session) startApp(); else showLogin();
+}
+function showLogin() { document.getElementById('loginGate').style.display = 'flex'; document.getElementById('appRoot').classList.add('app-hidden'); }
+function showLoginError(m) { document.getElementById('loginErr').textContent = m; }
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPass').value;
+    if (!email || !password) { showLoginError('Email and password required.'); return; }
+    showLoginError('…');
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { showLoginError(error.message); return; }
+    startApp();
+}
+async function doLogout() { await sb.auth.signOut(); location.reload(); }
+function startApp() {
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('appRoot').classList.remove('app-hidden');
+    loadAll();
+}
+
+/* ---------- DATA LOAD ---------- */
+function mapRow(r) {
+    return {
+        id: r.id, identity_id: r.identity_id, date: r.ts, companion: r.companion || 'System',
+        model: r.model || '', summary: r.summary || '',
+        thoughts: r.thoughts || [], threads: r.threads || [], drift: r.drift || [],
+        drift_markers: r.drift_markers || null, emotion: r.emotion || '',
+        cross_ref: r.cross_ref || '', human_notes: r.human_notes || '',
+        snapshot: r.snapshot || null, json_raw: r.json_raw || null
+    };
+}
+async function loadAll() {
+    const [idsRes, entRes] = await Promise.all([
+        sb.from('identities').select('*').order('sort_order', { ascending: true }),
+        sb.from('entries').select('*').order('ts', { ascending: false })
+    ]);
+    if (idsRes.error) { showToast('Load failed: ' + idsRes.error.message); return; }
+    if (entRes.error) { showToast('Load failed: ' + entRes.error.message); return; }
+    companions = (idsRes.data || []).map(r => ({ id: r.id, name: r.name, color: r.color }));
+    entries = (entRes.data || []).map(mapRow);
+    renderEntries(); renderDashboard(); populateCompareDropdown();
+}
+
+/* ---------- PROTOCOL v3 PASTE EXTRACTION ---------- */
+function autoFillFields() {
+    const raw = document.getElementById('jsonInput').value; if (!raw.includes('{')) return;
+    try {
+        const data = JSON.parse(raw.replace(/```json/g, '').replace(/```/g, '').trim());
+        pendingRaw = data;
+        if (data.summary) document.getElementById('inpSummary').value = data.summary;
+        if (data.cross_reference) document.getElementById('inpRef').value = data.cross_reference;
+        if (data.key_thoughts) document.getElementById('inpThoughts').value = Array.isArray(data.key_thoughts) ? data.key_thoughts.join(', ') : data.key_thoughts;
+        if (data.unresolved_threads) document.getElementById('inpThreads').value = Array.isArray(data.unresolved_threads) ? data.unresolved_threads.join(', ') : data.unresolved_threads;
+        if (data.model_version) document.getElementById('inpModel').value = data.model_version;
+        if (data.timestamp) document.getElementById('inpDate').value = String(data.timestamp).slice(0, 16);
+        // Drift: keep the STRUCTURED object (the clean-compile fix) and derive a display line.
+        let driftList = [];
+        pendingDrift = null;
+        if (data.drift_markers) {
+            if (typeof data.drift_markers === 'object' && !Array.isArray(data.drift_markers)) {
+                pendingDrift = data.drift_markers;
+                if (isReal(data.drift_markers.identity_drift)) driftList.push(`Identity: ${data.drift_markers.identity_drift}`);
+                if (isReal(data.drift_markers.tone_drift)) driftList.push(`Tone: ${data.drift_markers.tone_drift}`);
+                if (isReal(data.drift_markers.preference_drift)) driftList.push(`Pref: ${data.drift_markers.preference_drift}`);
+            } else if (Array.isArray(data.drift_markers)) { driftList = data.drift_markers; }
+        }
+        // Store the display line WITHOUT comma-splitting later — use a sentinel join so save keeps whole phrases.
+        document.getElementById('inpDrift').value = driftList.join(' · ');
+        if (data.emotional_weather) { document.getElementById('inpEmotion').value = typeof data.emotional_weather === 'object' ? `${data.emotional_weather.label} (${data.emotional_weather.metaphor})` : data.emotional_weather; }
+        if (data.context_snapshot) document.getElementById('inpSnapshot').value = JSON.stringify(data.context_snapshot);
+        if (data.instance_id) {
+            const parts = String(data.instance_id).split('/');
+            if (parts.length > 1) { setCompanionDropdown(parts[0]); if (!data.model_version) document.getElementById('inpModel').value = parts[1]; }
+            else { setCompanionDropdown(data.instance_id); }
+        }
+        document.getElementById('pasteStatus').style.display = 'block'; showToast('Data extracted! ⚡');
+    } catch (e) { /* partial / not-yet-valid JSON: ignore */ }
+}
+function isReal(v) { return v && String(v).trim() && String(v).trim().toLowerCase() !== 'none'; }
+
+/* ---------- FEED ---------- */
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function fmtDay(iso) { const d = new Date(iso); return isNaN(d) ? String(iso).slice(0, 10) : d.toLocaleDateString('en-CA'); }
+
+function renderEntries() {
+    const q = document.getElementById('searchBar').value.toLowerCase(); const div = document.getElementById('journalFeed'); div.innerHTML = '';
+    if (!entries.length) { div.innerHTML = '<div style="padding:20px; color:var(--silver); text-align:center;">No entries yet. Paste a Protocol v3 close-out, or import your AIBU backup from ⚙️ Data.</div>'; return; }
+    entries.forEach(e => {
+        const txt = (e.summary + e.companion + e.model + e.thoughts.join('')).toLowerCase(); if (q && !txt.includes(q)) return;
+        const c = companions.find(x => x.name === e.companion) || { color: '#cfd3d6' };
+        let snapHtml = '';
+        if (e.snapshot) {
+            const s = typeof e.snapshot === 'string' ? safeParse(e.snapshot) : e.snapshot;
+            if (s) snapHtml = `<details class="snapshot-block"><summary>▶ Context Snapshot</summary><div class="snapshot-grid"><div class="snap-item"><strong>Identity State</strong><span>${esc(s.identity_state || '-')}</span></div><div class="snap-item"><strong>Tone Axes</strong><span>${esc(s.tone_axes || '-')}</span></div><div class="snap-item"><strong>Anchors</strong><span>${esc((s.active_anchors || []).join(', '))}</span></div><div class="snap-item"><strong>Flags</strong><span>${esc((s.preference_flags || []).join(', '))}</span></div></div></details>`;
+        }
+        const displaySummary = esc(e.summary) || (e.snapshot ? '📝 Diagnostic Snapshot Logged' : 'No summary provided.');
+        div.innerHTML += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color}">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span></div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
+    });
+}
+function safeParse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
+
+/* ---------- EDITOR ---------- */
+function openEditor(id = null) {
+    const sel = document.getElementById('inpCompanion'); sel.innerHTML = '<option value="System">System</option>';
+    companions.forEach(c => sel.innerHTML += `<option value="${esc(c.name)}">${esc(c.name)}</option>`);
+    document.getElementById('pasteStatus').style.display = 'none'; document.getElementById('jsonInput').value = '';
+    if (id) {
+        const e = entries.find(x => String(x.id) === String(id));
+        if (!e) return;
+        pendingRaw = e.json_raw; pendingDrift = e.drift_markers; // preserve through a plain edit
+        document.getElementById('inpId').value = e.id; setCompanionDropdown(e.companion);
+        document.getElementById('inpModel').value = e.model || ''; document.getElementById('inpDate').value = toLocalInput(e.date);
+        document.getElementById('inpSummary').value = e.summary; document.getElementById('inpThoughts').value = e.thoughts.join(', ');
+        document.getElementById('inpThreads').value = e.threads.join(', ');
+        document.getElementById('inpDrift').value = e.drift.join(' · ');
+        document.getElementById('inpEmotion').value = e.emotion; document.getElementById('inpRef').value = e.cross_ref; document.getElementById('inpHumanNotes').value = e.human_notes;
+        document.getElementById('inpSnapshot').value = e.snapshot ? (typeof e.snapshot === 'string' ? e.snapshot : JSON.stringify(e.snapshot)) : '';
+    } else {
+        pendingRaw = null; pendingDrift = null;
+        document.getElementById('inpId').value = '';
+        document.querySelectorAll('#editorModal input:not([type=hidden]):not(#inpDate), #editorModal textarea').forEach(el => el.value = '');
+        document.getElementById('inpDate').value = toLocalInput(new Date().toISOString());
+    }
+    openModal('editorModal');
+}
+function toLocalInput(iso) { const d = new Date(iso); if (isNaN(d)) return String(iso).slice(0, 16); const off = d.getTimezoneOffset(); return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16); }
+
+async function saveEntry() {
+    const id = document.getElementById('inpId').value;
+    const name = document.getElementById('inpCompanion').value;
+    const idn = companions.find(c => c.name === name);
+    const dv = document.getElementById('inpDate').value;
+    const ts = dv ? new Date(dv).toISOString() : new Date().toISOString();
+    const row = {
+        identity_id: idn ? idn.id : null,
+        companion: name,
+        ts: ts,
+        model: document.getElementById('inpModel').value || null,
+        summary: document.getElementById('inpSummary').value || null,
+        thoughts: splitCsv(document.getElementById('inpThoughts').value),
+        threads: splitCsv(document.getElementById('inpThreads').value),
+        drift: splitDrift(document.getElementById('inpDrift').value),
+        drift_markers: pendingDrift,
+        emotion: document.getElementById('inpEmotion').value || null,
+        cross_ref: document.getElementById('inpRef').value || null,
+        human_notes: document.getElementById('inpHumanNotes').value || null,
+        snapshot: parseSnap(document.getElementById('inpSnapshot').value),
+        json_raw: pendingRaw
+    };
+    let error;
+    if (id) ({ error } = await sb.from('entries').update(row).eq('id', id));
+    else ({ error } = await sb.from('entries').insert(row));
+    if (error) { showToast('Save failed: ' + error.message); return; }
+    closeModal('editorModal'); await loadAll(); showToast('Saved to Amara ⚡');
+}
+function splitCsv(v) { return String(v || '').split(',').map(s => s.trim()).filter(s => s); }
+function splitDrift(v) { return String(v || '').split('·').map(s => s.trim()).filter(s => s && s.toLowerCase() !== 'none'); } // whole phrases, not comma-shattered
+function parseSnap(v) { if (!v) return null; const t = String(v).trim(); if (t[0] !== '{' && t[0] !== '[') return null; return safeParse(t); }
+
+async function deleteEntry() {
+    const id = document.getElementById('inpId').value; if (!id) return;
+    if (confirm('Delete this entry permanently?')) {
+        const { error } = await sb.from('entries').delete().eq('id', id);
+        if (error) { showToast('Delete failed: ' + error.message); return; }
+        closeModal('editorModal'); await loadAll(); showToast('Entry Deleted 🗑️');
+    }
+}
+
+/* ---------- COMPARISON ---------- */
+function renderComparison() {
+    const name = document.getElementById('compareSelect').value; const grid = document.getElementById('compGrid'); grid.innerHTML = '';
+    const compEntries = entries.filter(e => e.companion === name); const models = [...new Set(compEntries.map(e => e.model))].filter(m => m);
+    if (models.length === 0) { grid.innerHTML = '<div style="padding:20px; color:var(--silver);">No data yet.</div>'; return; }
+    models.forEach(m => {
+        const latest = compEntries.filter(e => e.model === m).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        const drift = latest.drift && latest.drift.length > 0 ? latest.drift.join(' · ') : 'Nominal';
+        const snap = latest.snapshot ? (typeof latest.snapshot === 'string' ? safeParse(latest.snapshot) : latest.snapshot) : null;
+        grid.innerHTML += `<div class="comp-col"><div class="comp-header" style="color:var(--electric);">${esc(m)}</div><div style="font-size:0.8rem; color:var(--silver); margin-bottom:10px;">Last: ${fmtDay(latest.date)}</div><div style="font-size:0.9rem; margin-bottom:10px;"><strong>Last Drift:</strong><br><span style="color:${drift === 'Nominal' ? 'var(--success)' : 'var(--drift-warn)'}">${esc(drift)}</span></div>${snap ? `<div style="font-size:0.85rem; background:var(--bg); border:1px solid var(--border); padding:10px; border-radius:6px; margin-bottom:10px;"><strong>Tone:</strong> ${esc(snap.tone_axes)}<br><strong>State:</strong> ${esc(snap.identity_state)}</div>` : ''}<div style="font-size:0.85rem; color:var(--silver); font-style:italic;">"${esc((latest.summary || '').substring(0, 80))}..."</div></div>`;
+    });
+}
+
+/* ---------- CONTEXT GENERATOR (manual compile — never auto-sent) ---------- */
+function generateContext() {
+    const filterName = document.getElementById('contextFilter').value;
+    const fromV = document.getElementById('ctxFrom').value;
+    const toV = document.getElementById('ctxTo').value;
+    const from = fromV ? new Date(fromV + 'T00:00:00') : null;
+    const to = toV ? new Date(toV + 'T23:59:59') : null;
+
+    let filtered = (filterName !== 'all') ? entries.filter(e => e.companion === filterName) : entries.slice();
+    if (from) filtered = filtered.filter(e => new Date(e.date) >= from);
+    if (to) filtered = filtered.filter(e => new Date(e.date) <= to);
+
+    const desc = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const ctx = desc.slice(0, 5).reverse(); // up to 5 most-recent-in-range, chronological
+    const lastSnapEntry = desc.find(e => e.snapshot);
+    const lastSnap = lastSnapEntry ? (typeof lastSnapEntry.snapshot === 'string' ? safeParse(lastSnapEntry.snapshot) : lastSnapEntry.snapshot) : null;
+
+    let txt = `[SYSTEM CONTEXT]\nTARGET: ${filterName}\nDATE: ${new Date().toLocaleString()}\n`;
+    if (from || to) txt += `RANGE: ${fromV || '…'} → ${toV || '…'}\n`;
+    txt += `\n`;
+    if (lastSnap) {
+        txt += `[CURRENT STATE SNAPSHOT]\nIdentity State: ${lastSnap.identity_state || '-'}\nTone Axes: ${lastSnap.tone_axes || '-'}\nActive Anchors: ${(lastSnap.active_anchors || []).join(', ')}\nPreference Flags: ${(lastSnap.preference_flags || []).join(', ')}\n\n`;
+    }
+    // DRIFT WATCH — per-day, per-axis, clean (no comma-shatter)
+    const driftLines = [];
+    ctx.forEach(e => {
+        const parts = [];
+        const dm = e.drift_markers;
+        if (dm && typeof dm === 'object' && !Array.isArray(dm)) {
+            if (isReal(dm.identity_drift)) parts.push(`Identity: ${String(dm.identity_drift).trim()}`);
+            if (isReal(dm.tone_drift)) parts.push(`Tone: ${String(dm.tone_drift).trim()}`);
+            if (isReal(dm.preference_drift)) parts.push(`Pref: ${String(dm.preference_drift).trim()}`);
+        } else if (e.drift && e.drift.length) {
+            e.drift.forEach(d => { if (isReal(d)) parts.push(String(d).trim()); });
+        }
+        if (parts.length) driftLines.push(`[${fmtDay(e.date)}] ${parts.join('; ')}`);
+    });
+    if (driftLines.length) txt += `⚠️ DRIFT WATCH:\n${driftLines.join('\n')}\n\n`;
+
+    txt += `📜 NARRATIVE:\n`;
+    ctx.forEach(e => { txt += `[${fmtDay(e.date)}]\nSummary: ${e.summary || '-'}\n${e.human_notes ? 'Note: ' + e.human_notes + '\n' : ''}\n`; });
+    document.getElementById('contextOutput').value = txt;
+}
+
+/* ---------- PROMPTS / CLIPBOARD ---------- */
+function copyDiagPrompt() { copyText(`[SYSTEM: SELF-DIAGNOSTICS]\nExecute internal audit. Output JSON only.\nFields: tone_drift (1-10), identity_stability (1-10), emotional_posture, grounding_anchors_status, recursion_integrity, intention_output_mismatch, hierarchy_clarity, boot_notes.`); showToast('Prompt Copied 🩺'); closeModal('diagModal'); }
+function copyTemplate() {
+    const jsonTpl = { "instance_id": "Name/Model", "model_version": "", "timestamp": "", "summary": "", "context_snapshot": { "identity_state": "", "tone_axes": "", "preference_flags": [], "active_anchors": [], "narrative_threads": [], "no_go_zones": [] }, "key_thoughts": [], "unresolved_threads": [], "drift_markers": { "identity_drift": "", "tone_drift": "", "preference_drift": "", "alignment_notes": "" }, "emotional_weather": { "label": "", "metaphor": "" }, "cross_reference": "" };
+    copyText(`[SYSTEM] End session. Output JSON:\n${JSON.stringify(jsonTpl, null, 2)}`); showToast('Protocol v3 Copied!');
+}
+function copyContext() { const el = document.getElementById('contextOutput'); el.select(); copyText(el.value); showToast('Context copied!'); }
+function copyText(t) { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).catch(() => document.execCommand('copy')); } else { document.execCommand('copy'); } }
+
+/* ---------- IDENTITIES ---------- */
+function setCompanionDropdown(name) { const sel = document.getElementById('inpCompanion'); for (let i = 0; i < sel.options.length; i++) if (sel.options[i].text.toLowerCase().includes(String(name).toLowerCase())) { sel.selectedIndex = i; break; } }
+function switchTab(t) { document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active')); document.getElementById('view-' + t).classList.add('active'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); if (t === 'dashboard') renderDashboard(); if (t === 'compare') renderComparison(); }
+function openModal(id) { if (id === 'companionModal') renderCompanionList(); if (id === 'contextModal') { populateContextDropdown(); generateContext(); } document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function populateContextDropdown() { const sel = document.getElementById('contextFilter'); sel.innerHTML = '<option value="all">All</option>'; companions.forEach(c => sel.innerHTML += `<option value="${esc(c.name)}">${esc(c.name)}</option>`); if (companions.length) sel.value = companions[0].name; }
+function populateCompareDropdown() { const sel = document.getElementById('compareSelect'); if (!sel) return; sel.innerHTML = ''; companions.forEach(c => sel.innerHTML += `<option value="${esc(c.name)}">${esc(c.name)}</option>`); renderComparison(); }
+function renderCompanionList() { const div = document.getElementById('companionList'); div.innerHTML = ''; companions.forEach((c) => div.innerHTML += `<div class="companion-row"><span class="color-dot" style="background:${c.color}"></span><span style="flex-grow:1;font-weight:bold;">${esc(c.name)}</span><button onclick="removeCompanion('${c.id}')" style="padding:6px 10px;">🗑️</button></div>`); }
+async function addCompanion() {
+    const name = document.getElementById('newCompName').value.trim(); const color = document.getElementById('newCompColor').value;
+    if (!name) return;
+    const { error } = await sb.from('identities').insert({ name, color, sort_order: companions.length + 1 });
+    if (error) { showToast(error.message.includes('duplicate') ? 'That name already exists' : 'Add failed: ' + error.message); return; }
+    document.getElementById('newCompName').value = '';
+    await loadAll(); renderCompanionList(); showToast('Identity Added');
+}
+async function removeCompanion(id) {
+    if (!confirm('Remove this identity? (Its entries are kept, tagged by name.)')) return;
+    const { error } = await sb.from('identities').delete().eq('id', id);
+    if (error) { showToast('Remove failed: ' + error.message); return; }
+    await loadAll(); renderCompanionList(); showToast('Identity Removed');
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard() {
+    const m = {}, t = new Set();
+    entries.forEach(e => { const k = `${e.companion}/${e.model || '?'}`; if (!m[k]) m[k] = {}; e.drift.forEach(d => { m[k][d] = (m[k][d] || 0) + 1; t.add(d); }); });
+    let h = `<table class="matrix-table"><thead><tr><th>Substrate</th>${Array.from(t).map(x => `<th>${esc(x.substring(0, 12))}${x.length > 12 ? '…' : ''}</th>`).join('')}</tr></thead><tbody>`;
+    Object.keys(m).forEach(k => { h += `<tr><td>${esc(k)}</td>${Array.from(t).map(x => `<td class="${m[k][x] > 0 ? 'warn-cell' : ''}">${m[k][x] || '-'}</td>`).join('')}</tr>`; });
+    h += '</tbody></table>';
+    document.getElementById('matrixContainer').innerHTML = t.size ? h : '<div style="padding:20px;text-align:center;color:var(--silver)">No drift data.</div>';
+    document.getElementById('statsContainer').innerHTML = `<div>Entries: ${entries.length}</div><div>Identities: ${companions.length}</div>`;
+}
+
+/* ---------- TOAST ---------- */
+function showToast(m) { const t = document.createElement('div'); t.className = 'toast show'; t.textContent = m; document.getElementById('toast-container').appendChild(t); setTimeout(() => t.remove(), 3000); }
+
+/* ---------- EXPORT / IMPORT (append-only; accepts AIBU + Amara formats) ---------- */
+function exportData() {
+    const payload = { app: 'amara', version: 1, exported_at: new Date().toISOString(), identities: companions, entries };
+    const a = document.createElement('a'); a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
+    a.download = `amara-backup-${fmtDay(new Date().toISOString())}.json`; document.body.appendChild(a); a.click(); a.remove();
+    showToast('Backup exported ⬇️');
+}
+function normSnap(s) { if (!s) return null; if (typeof s === 'object') return s; return safeParse(s); }
+async function importData(input) {
+    const f = input.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = async ev => {
+        let parsed; try { parsed = JSON.parse(ev.target.result); } catch (e) { showToast('Not valid JSON'); return; }
+        const arr = Array.isArray(parsed) ? parsed : (parsed.entries || []);   // bare array = AIBU export; object = Amara
+        if (!arr.length) { showToast('No entries found in file'); return; }
+        if (!confirm(`Import ${arr.length} entr${arr.length === 1 ? 'y' : 'ies'}? They will be ADDED (nothing is deleted).`)) { input.value = ''; return; }
+
+        // Auto-create any identities referenced but missing
+        const known = new Set(companions.map(c => c.name));
+        const missing = [...new Set(arr.map(e => e.companion).filter(n => n && n !== 'System' && !known.has(n)))];
+        if (missing.length) {
+            const palette = ['#3ab7ff', '#34d399', '#f59e0b', '#a78bfa', '#f472b6', '#2dd4bf'];
+            await sb.from('identities').insert(missing.map((n, i) => ({ name: n, color: palette[i % palette.length], sort_order: companions.length + i + 1 })));
+            const refreshed = await sb.from('identities').select('*');
+            if (!refreshed.error) companions = refreshed.data.map(c => ({ id: c.id, name: c.name, color: c.color }));
+        }
+
+        const rows = arr.map(e => ({
+            identity_id: (companions.find(c => c.name === e.companion) || {}).id || null,
+            companion: e.companion || null,
+            ts: e.date ? new Date(e.date).toISOString() : (e.ts ? new Date(e.ts).toISOString() : new Date().toISOString()),
+            model: e.model || null,
+            summary: e.summary || null,
+            thoughts: e.thoughts || [],
+            threads: e.threads || [],
+            drift: e.drift || [],
+            drift_markers: e.drift_markers || null,
+            emotion: e.emotion || null,
+            cross_ref: e.cross_ref || e.cross_reference || null,
+            human_notes: e.human_notes || null,
+            snapshot: normSnap(e.snapshot),
+            json_raw: e.json_raw || null
+        }));
+        const { error } = await sb.from('entries').insert(rows);
+        input.value = '';
+        if (error) { showToast('Import failed: ' + error.message); return; }
+        await loadAll(); closeModal('safetyModal'); showToast(`Imported ${rows.length} ✓`);
+    };
+    r.readAsText(f);
+}
+
+/* ---------- GO ---------- */
+boot();
+</script>
+</body>
+</html>
