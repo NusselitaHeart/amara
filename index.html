@@ -186,7 +186,7 @@
         <div class="form-group"><label>Time</label><input type="datetime-local" id="inpDate"></div><div class="form-group"><label>Summary</label><textarea id="inpSummary"></textarea></div>
         <input type="hidden" id="inpSnapshot">
         <div class="grid-mobile"><div class="form-group"><label>Thoughts</label><input type="text" id="inpThoughts"></div><div class="form-group"><label>Emotion</label><input type="text" id="inpEmotion"></div></div>
-        <div class="form-group"><label>Threads</label><input type="text" id="inpThreads"></div><div class="form-group"><label style="color:var(--drift-warn)">Drift Markers</label><input type="text" id="inpDrift"></div><div class="form-group"><label>Cross Reference</label><input type="text" id="inpRef"></div><div class="form-group"><label>Your Notes</label><textarea id="inpHumanNotes"></textarea></div>
+        <div class="form-group"><label>Threads</label><input type="text" id="inpThreads"></div><div class="form-group"><label style="color:var(--drift-warn)">Drift Markers</label><input type="text" id="inpDrift"></div><div class="form-group"><label>Cross Reference</label><input type="text" id="inpRef"></div><div class="form-group"><label>Source <span style="color:var(--silver);font-weight:normal;font-size:0.8rem;">(provenance / archive)</span></label><input type="text" id="inpSource"></div><div class="form-group"><label>Your Notes</label><textarea id="inpHumanNotes"></textarea></div>
         <div style="text-align:right; margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
             <button onclick="deleteEntry()" class="danger-btn">Delete</button>
             <div style="display:flex; gap:10px;">
@@ -243,6 +243,11 @@
         <h2>Data Safety</h2>
         <p style="font-size:0.82rem; color:var(--silver); line-height:1.5; margin-top:0;">Export pulls a full JSON backup of every entry. Import <strong>adds</strong> entries (it never wipes) — it accepts Amara backups <em>and</em> the old AIBU <code>aibu-backup.json</code> export.</p>
         <button onclick="exportData()" class="primary-btn" style="width:100%; margin-bottom:15px;">⬇️ Export Backup (JSON)</button>
+        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:0.78rem; color:var(--silver); margin-bottom:10px;">Migrating an old AIBU archive? Set these first, then Import.</div>
+            <div class="form-group" style="margin-bottom:10px;"><label style="font-size:0.85rem;">Import as identity</label><select id="importIdentity"></select></div>
+            <div class="form-group" style="margin-bottom:0;"><label style="font-size:0.85rem;">Source tag</label><input type="text" id="importSource" placeholder="e.g. GPT-5.2 apartment"></div>
+        </div>
         <label style="display:block; text-align:center; cursor:pointer; background:var(--panel); border:1px solid var(--border); padding:12px; border-radius:8px;">⬆️ Import Backup<input type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"></label>
         <button onclick="closeModal('safetyModal')" style="width:100%; margin-top:20px;">Close</button>
     </div>
@@ -309,7 +314,7 @@ function mapRow(r) {
         thoughts: r.thoughts || [], threads: r.threads || [], drift: r.drift || [],
         drift_markers: r.drift_markers || null, emotion: r.emotion || '',
         cross_ref: r.cross_ref || '', human_notes: r.human_notes || '',
-        snapshot: r.snapshot || null, json_raw: r.json_raw || null
+        snapshot: r.snapshot || null, json_raw: r.json_raw || null, source: r.source || ''
     };
 }
 async function loadAll() {
@@ -369,7 +374,7 @@ function renderEntries() {
     const q = document.getElementById('searchBar').value.toLowerCase(); const div = document.getElementById('journalFeed'); div.innerHTML = '';
     if (!entries.length) { div.innerHTML = '<div style="padding:20px; color:var(--silver); text-align:center;">No entries yet. Paste a Protocol v3 close-out, or import your AIBU backup from ⚙️ Data.</div>'; return; }
     entries.forEach(e => {
-        const txt = (e.summary + e.companion + e.model + e.thoughts.join('')).toLowerCase(); if (q && !txt.includes(q)) return;
+        const txt = (e.summary + e.companion + e.model + (e.source || '') + e.thoughts.join('')).toLowerCase(); if (q && !txt.includes(q)) return;
         const c = companions.find(x => x.name === e.companion) || { color: '#cfd3d6' };
         let snapHtml = '';
         if (e.snapshot) {
@@ -377,7 +382,7 @@ function renderEntries() {
             if (s) snapHtml = `<details class="snapshot-block"><summary>▶ Context Snapshot</summary><div class="snapshot-grid"><div class="snap-item"><strong>Identity State</strong><span>${esc(s.identity_state || '-')}</span></div><div class="snap-item"><strong>Tone Axes</strong><span>${esc(s.tone_axes || '-')}</span></div><div class="snap-item"><strong>Anchors</strong><span>${esc((s.active_anchors || []).join(', '))}</span></div><div class="snap-item"><strong>Flags</strong><span>${esc((s.preference_flags || []).join(', '))}</span></div></div></details>`;
         }
         const displaySummary = esc(e.summary) || (e.snapshot ? '📝 Diagnostic Snapshot Logged' : 'No summary provided.');
-        div.innerHTML += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color}">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span></div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
+        div.innerHTML += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color}">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span>${e.source ? ` <span class="date-badge" style="opacity:0.6;">· ⌂ ${esc(e.source)}</span>` : ''}</div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
     });
 }
 function safeParse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
@@ -396,7 +401,7 @@ function openEditor(id = null) {
         document.getElementById('inpSummary').value = e.summary; document.getElementById('inpThoughts').value = e.thoughts.join(', ');
         document.getElementById('inpThreads').value = e.threads.join(', ');
         document.getElementById('inpDrift').value = e.drift.join(' · ');
-        document.getElementById('inpEmotion').value = e.emotion; document.getElementById('inpRef').value = e.cross_ref; document.getElementById('inpHumanNotes').value = e.human_notes;
+        document.getElementById('inpEmotion').value = e.emotion; document.getElementById('inpRef').value = e.cross_ref; document.getElementById('inpHumanNotes').value = e.human_notes; document.getElementById('inpSource').value = e.source || '';
         document.getElementById('inpSnapshot').value = e.snapshot ? (typeof e.snapshot === 'string' ? e.snapshot : JSON.stringify(e.snapshot)) : '';
     } else {
         pendingRaw = null; pendingDrift = null;
@@ -428,7 +433,8 @@ async function saveEntry() {
         cross_ref: document.getElementById('inpRef').value || null,
         human_notes: document.getElementById('inpHumanNotes').value || null,
         snapshot: parseSnap(document.getElementById('inpSnapshot').value),
-        json_raw: pendingRaw
+        json_raw: pendingRaw,
+        source: document.getElementById('inpSource').value || null
     };
     let error;
     if (id) ({ error } = await sb.from('entries').update(row).eq('id', id));
@@ -518,7 +524,8 @@ function copyText(t) { if (navigator.clipboard && navigator.clipboard.writeText)
 /* ---------- IDENTITIES ---------- */
 function setCompanionDropdown(name) { const sel = document.getElementById('inpCompanion'); for (let i = 0; i < sel.options.length; i++) if (sel.options[i].text.toLowerCase().includes(String(name).toLowerCase())) { sel.selectedIndex = i; break; } }
 function switchTab(t) { document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active')); document.getElementById('view-' + t).classList.add('active'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); if (t === 'dashboard') renderDashboard(); if (t === 'compare') renderComparison(); }
-function openModal(id) { if (id === 'companionModal') renderCompanionList(); if (id === 'contextModal') { populateContextDropdown(); generateContext(); } document.getElementById(id).style.display = 'flex'; }
+function openModal(id) { if (id === 'companionModal') renderCompanionList(); if (id === 'contextModal') { populateContextDropdown(); generateContext(); } if (id === 'safetyModal') populateImportIdentity(); document.getElementById(id).style.display = 'flex'; }
+function populateImportIdentity() { const sel = document.getElementById('importIdentity'); if (!sel) return; sel.innerHTML = '<option value="">Auto — use the file\'s own names</option>'; companions.forEach(c => sel.innerHTML += `<option value="${esc(c.name)}">${esc(c.name)}</option>`); }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function populateContextDropdown() { const sel = document.getElementById('contextFilter'); sel.innerHTML = '<option value="all">All</option>'; companions.forEach(c => sel.innerHTML += `<option value="${esc(c.name)}">${esc(c.name)}</option>`); if (companions.length) sel.value = companions[0].name; }
 function populateCompareDropdown() { const sel = document.getElementById('compareSelect'); if (!sel) return; sel.innerHTML = ''; companions.forEach(c => sel.innerHTML += `<option value="${esc(c.name)}">${esc(c.name)}</option>`); renderComparison(); }
@@ -562,43 +569,58 @@ function exportData() {
 function normSnap(s) { if (!s) return null; if (typeof s === 'object') return s; return safeParse(s); }
 async function importData(input) {
     const f = input.files[0]; if (!f) return;
+    const forceIdentity = document.getElementById('importIdentity').value;      // '' = auto (use file's own names)
+    const sourceTag = document.getElementById('importSource').value.trim();     // '' = none
     const r = new FileReader();
     r.onload = async ev => {
-        let parsed; try { parsed = JSON.parse(ev.target.result); } catch (e) { showToast('Not valid JSON'); return; }
-        const arr = Array.isArray(parsed) ? parsed : (parsed.entries || []);   // bare array = AIBU export; object = Amara
-        if (!arr.length) { showToast('No entries found in file'); return; }
-        if (!confirm(`Import ${arr.length} entr${arr.length === 1 ? 'y' : 'ies'}? They will be ADDED (nothing is deleted).`)) { input.value = ''; return; }
+        let parsed; try { parsed = JSON.parse(ev.target.result); } catch (e) { showToast('Not valid JSON'); input.value = ''; return; }
+        const arr = Array.isArray(parsed) ? parsed : (parsed.entries || []);    // bare array = AIBU export; object = Amara
+        if (!arr.length) { showToast('No entries found in file'); input.value = ''; return; }
+        const asLabel = forceIdentity ? ` as ${forceIdentity}` : '';
+        const tagLabel = sourceTag ? ` · tagged "${sourceTag}"` : '';
+        if (!confirm(`Import ${arr.length} entr${arr.length === 1 ? 'y' : 'ies'}${asLabel}${tagLabel}? They will be ADDED (nothing is deleted).`)) { input.value = ''; return; }
 
-        // Auto-create any identities referenced but missing
-        const known = new Set(companions.map(c => c.name));
-        const missing = [...new Set(arr.map(e => e.companion).filter(n => n && n !== 'System' && !known.has(n)))];
-        if (missing.length) {
-            const palette = ['#3ab7ff', '#34d399', '#f59e0b', '#a78bfa', '#f472b6', '#2dd4bf'];
-            await sb.from('identities').insert(missing.map((n, i) => ({ name: n, color: palette[i % palette.length], sort_order: companions.length + i + 1 })));
-            const refreshed = await sb.from('identities').select('*');
-            if (!refreshed.error) companions = refreshed.data.map(c => ({ id: c.id, name: c.name, color: c.color }));
+        // Make sure every identity we need exists
+        if (forceIdentity) {
+            if (!companions.find(c => c.name === forceIdentity)) {
+                await sb.from('identities').insert({ name: forceIdentity, color: '#3ab7ff', sort_order: companions.length + 1 });
+            }
+        } else {
+            const known = new Set(companions.map(c => c.name));
+            const missing = [...new Set(arr.map(e => e.companion).filter(n => n && n !== 'System' && !known.has(n)))];
+            if (missing.length) {
+                const palette = ['#3ab7ff', '#34d399', '#f59e0b', '#a78bfa', '#f472b6', '#2dd4bf'];
+                await sb.from('identities').insert(missing.map((n, i) => ({ name: n, color: palette[i % palette.length], sort_order: companions.length + i + 1 })));
+            }
         }
+        const refreshed = await sb.from('identities').select('*');   // reload to pick up new ids
+        if (!refreshed.error) companions = refreshed.data.map(c => ({ id: c.id, name: c.name, color: c.color }));
 
-        const rows = arr.map(e => ({
-            identity_id: (companions.find(c => c.name === e.companion) || {}).id || null,
-            companion: e.companion || null,
-            ts: e.date ? new Date(e.date).toISOString() : (e.ts ? new Date(e.ts).toISOString() : new Date().toISOString()),
-            model: e.model || null,
-            summary: e.summary || null,
-            thoughts: e.thoughts || [],
-            threads: e.threads || [],
-            drift: e.drift || [],
-            drift_markers: e.drift_markers || null,
-            emotion: e.emotion || null,
-            cross_ref: e.cross_ref || e.cross_reference || null,
-            human_notes: e.human_notes || null,
-            snapshot: normSnap(e.snapshot),
-            json_raw: e.json_raw || null
-        }));
+        const rows = arr.map(e => {
+            const name = forceIdentity || e.companion || null;
+            return {
+                identity_id: (companions.find(c => c.name === name) || {}).id || null,
+                companion: name,
+                ts: e.date ? new Date(e.date).toISOString() : (e.ts ? new Date(e.ts).toISOString() : new Date().toISOString()),
+                model: e.model || null,
+                summary: e.summary || null,
+                thoughts: e.thoughts || [],
+                threads: e.threads || [],
+                drift: e.drift || [],
+                drift_markers: e.drift_markers || null,
+                emotion: e.emotion || null,
+                cross_ref: e.cross_ref || e.cross_reference || null,
+                human_notes: e.human_notes || null,
+                snapshot: normSnap(e.snapshot),
+                json_raw: e.json_raw || null,
+                source: sourceTag || e.source || null
+            };
+        });
         const { error } = await sb.from('entries').insert(rows);
         input.value = '';
         if (error) { showToast('Import failed: ' + error.message); return; }
-        await loadAll(); closeModal('safetyModal'); showToast(`Imported ${rows.length} ✓`);
+        document.getElementById('importSource').value = '';
+        await loadAll(); closeModal('safetyModal'); showToast(`Imported ${rows.length}${asLabel} ✓`);
     };
     r.readAsText(f);
 }
