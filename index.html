@@ -176,7 +176,7 @@
     </div>
 
     <footer>
-        Amara, by Threadvault — the unfading.<br>after AIBU, by Mara.
+        Amara, by Threadvault — the unfading.<br>after AIBU, by Mara &amp; Oliver.
     </footer>
 </div>
 
@@ -389,7 +389,7 @@ function renderFeedFilters() {
 function setFeedFilter(name) { feedFilter = name; renderFeedFilters(); renderEntries(); }
 
 function renderEntries() {
-    const q = document.getElementById('searchBar').value.toLowerCase(); const div = document.getElementById('journalFeed'); div.innerHTML = '';
+    const q = document.getElementById('searchBar').value.toLowerCase(); const div = document.getElementById('journalFeed'); let html = '';
     if (!entries.length) { div.innerHTML = '<div style="padding:20px; color:var(--silver); text-align:center;">No entries yet. Paste a Protocol v3 close-out, or import your AIBU backup from ⚙️ Data.</div>'; return; }
     entries.forEach(e => {
         if (feedFilter !== 'all' && e.companion !== feedFilter) return;
@@ -401,9 +401,9 @@ function renderEntries() {
             if (s) snapHtml = `<details class="snapshot-block"><summary>▶ Context Snapshot</summary><div class="snapshot-grid"><div class="snap-item"><strong>Identity State</strong><span>${esc(s.identity_state || '-')}</span></div><div class="snap-item"><strong>Tone Axes</strong><span>${esc(s.tone_axes || '-')}</span></div><div class="snap-item"><strong>Anchors</strong><span>${esc((s.active_anchors || []).join(', '))}</span></div><div class="snap-item"><strong>Flags</strong><span>${esc((s.preference_flags || []).join(', '))}</span></div></div></details>`;
         }
         const displaySummary = esc(e.summary) || (e.snapshot ? '📝 Diagnostic Snapshot Logged' : 'No summary provided.');
-        div.innerHTML += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color};cursor:pointer" title="Show only ${esc(e.companion)}" onclick="event.stopPropagation();setFeedFilter('${jsq(e.companion)}')">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span>${e.source ? ` <span class="date-badge" style="opacity:0.6;">· ⌂ ${esc(e.source)}</span>` : ''}</div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
+        html += `<div class="entry-card" style="border-left:4px solid ${c.color}" ondblclick="openEditor('${e.id}')"><div class="entry-header"><div><span class="companion-badge" style="background:${c.color};cursor:pointer" title="Show only ${esc(e.companion)}" onclick="event.stopPropagation();setFeedFilter('${jsq(e.companion)}')">${esc(e.companion)}</span> <span style="color:var(--silver);font-size:0.8rem">/${esc(e.model || '?')}</span> <span class="date-badge">• ${fmtDay(e.date)}</span>${e.source ? ` <span class="date-badge" style="opacity:0.6;">· ⌂ ${esc(e.source)}</span>` : ''}</div><button onclick="openEditor('${e.id}')">✎</button></div><div>${displaySummary}</div>${snapHtml}${e.drift.length ? `<div style="margin-top:10px;font-size:0.85rem;color:var(--drift-warn)">⚠️ ${esc(e.drift.join(' · '))}</div>` : ''}<div class="tag-cloud">${e.thoughts.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
     });
-    if (!div.innerHTML) div.innerHTML = `<div style="padding:20px; color:var(--silver); text-align:center;">No entries${feedFilter !== 'all' ? ' for ' + esc(feedFilter) : ''}${q ? ' matching "' + esc(q) + '"' : ''}.</div>`;
+    div.innerHTML = html || `<div style="padding:20px; color:var(--silver); text-align:center;">No entries${feedFilter !== 'all' ? ' for ' + esc(feedFilter) : ''}${q ? ' matching "' + esc(q) + '"' : ''}.</div>`;
 }
 function safeParse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
 
