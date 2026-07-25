@@ -456,11 +456,17 @@ async function saveEntry() {
         json_raw: pendingRaw,
         source: document.getElementById('inpSource').value || null
     };
-    let error;
-    if (id) ({ error } = await sb.from('entries').update(row).eq('id', id));
-    else ({ error } = await sb.from('entries').insert(row));
+    let error, data;
+    if (id) ({ data, error } = await sb.from('entries').update(row).eq('id', id).select().single());
+    else ({ data, error } = await sb.from('entries').insert(row).select().single());
     if (error) { showToast('Save failed: ' + error.message); return; }
-    closeModal('editorModal'); await loadAll(); showToast('Saved to Amara ⚡');
+    if (data) {                                   // patch just this row locally — no full re-fetch
+        const mapped = mapRow(data);
+        const i = entries.findIndex(x => String(x.id) === String(mapped.id));
+        if (i >= 0) entries[i] = mapped; else entries.push(mapped);
+        entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+    closeModal('editorModal'); renderEntries(); renderDashboard(); showToast('Saved to Amara ⚡');
 }
 function splitCsv(v) { return String(v || '').split(',').map(s => s.trim()).filter(s => s); }
 function splitDrift(v) { return String(v || '').split('·').map(s => s.trim()).filter(s => s && s.toLowerCase() !== 'none'); } // whole phrases, not comma-shattered
@@ -471,7 +477,8 @@ async function deleteEntry() {
     if (confirm('Delete this entry permanently?')) {
         const { error } = await sb.from('entries').delete().eq('id', id);
         if (error) { showToast('Delete failed: ' + error.message); return; }
-        closeModal('editorModal'); await loadAll(); showToast('Entry Deleted 🗑️');
+        entries = entries.filter(x => String(x.id) !== String(id));
+        closeModal('editorModal'); renderEntries(); renderDashboard(); showToast('Entry Deleted 🗑️');
     }
 }
 
@@ -553,16 +560,19 @@ function renderCompanionList() { const div = document.getElementById('companionL
 async function addCompanion() {
     const name = document.getElementById('newCompName').value.trim(); const color = document.getElementById('newCompColor').value;
     if (!name) return;
-    const { error } = await sb.from('identities').insert({ name, color, sort_order: companions.length + 1 });
+    const { data, error } = await sb.from('identities').insert({ name, color, sort_order: companions.length + 1 }).select().single();
     if (error) { showToast(error.message.includes('duplicate') ? 'That name already exists' : 'Add failed: ' + error.message); return; }
+    if (data) companions.push({ id: data.id, name: data.name, color: data.color });
     document.getElementById('newCompName').value = '';
-    await loadAll(); renderCompanionList(); showToast('Identity Added');
+    renderCompanionList(); renderFeedFilters(); populateCompareDropdown(); showToast('Identity Added');
 }
 async function removeCompanion(id) {
     if (!confirm('Remove this identity? (Its entries are kept, tagged by name.)')) return;
     const { error } = await sb.from('identities').delete().eq('id', id);
     if (error) { showToast('Remove failed: ' + error.message); return; }
-    await loadAll(); renderCompanionList(); showToast('Identity Removed');
+    companions = companions.filter(c => c.id !== id);
+    if (feedFilter !== 'all' && !companions.find(c => c.name === feedFilter)) feedFilter = 'all';
+    renderCompanionList(); renderFeedFilters(); populateCompareDropdown(); renderEntries(); showToast('Identity Removed');
 }
 
 /* ---------- DASHBOARD ---------- */
